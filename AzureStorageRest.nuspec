@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+    <metadata>
+        <id>AzureStorageRest</id>
+        <version>0.8.2</version>
+        <authors>Sergey Aldoukhov</authors>
+        <owners>Sergey Aldoukhov</owners>
+        <licenseUrl>http://opensource.org/licenses/ms-pl</licenseUrl>
+        <projectUrl>https://github.com/saldoukhov/AzureStorageRest</projectUrl>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>Portable client for Azure Storage</description>
+        <summary />
+        <copyright>© Sergey Aldoukhov 2014</copyright>
+        <tags>httpclient azurestorage rest</tags>
+        <dependencies>
+            <dependency id="Microsoft.Net.Http" version="2.2.18" />
+            <dependency id="Rx-Main" version="2.2.2" />
+        </dependencies>
+    </metadata>
+    <files>
+        <file src="bin\Release\AzureStorageRest.dll" target="lib\portable-net45+wp8+win8\AzureStorageRest.dll" />
+    </files>
+</package>
