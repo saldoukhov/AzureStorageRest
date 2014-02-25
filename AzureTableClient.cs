@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -43,25 +44,35 @@ namespace AzureStorageRest
 
         private IObservable<HttpResponseMessage> GetResponses(string tableName, IDictionary<string, string> parameters)
         {
-            var o = Observable.Create<HttpResponseMessage>(async observer =>
-                                                                 {
-                                                                     Tuple<string, string> continuationToken = null;
-                                                                     while (true)
-                                                                     {
-                                                                         var resp = await GetResponse(tableName, parameters, continuationToken);
-                                                                         observer.OnNext(resp);
-                                                                         IEnumerable<string> rk;
-                                                                         if (!resp.Headers.TryGetValues("x-ms-continuation-NextRowKey", out rk))
-                                                                             break;
-                                                                         continuationToken =
-                                                                             Tuple.Create(resp.Headers.GetValues(
-                                                                                 "x-ms-continuation-NextPartitionKey")
-                                                                                 .First(), rk.First());
-                                                                     }
-                                                                     observer.OnCompleted();
-                                                                 });
+            var o = Observable.Create<HttpResponseMessage>(observer =>
+                                                    {
+                                                        var subscription = new BooleanDisposable();
+                                                        Tuple<string, string> continuationToken = null;
+                                                        Action work = async () =>
+                                                        {
+                                                            while (true)
+                                                            {
+                                                                if (subscription.IsDisposed)
+                                                                    break;
+                                                                var resp = await GetResponse(tableName, parameters, continuationToken);
+                                                                if (subscription.IsDisposed)
+                                                                    break;
+                                                                observer.OnNext(resp);
+                                                                IEnumerable<string> rk;
+                                                                if (!resp.Headers.TryGetValues("x-ms-continuation-NextRowKey", out rk))
+                                                                    break;
+                                                                continuationToken =
+                                                                    Tuple.Create(resp.Headers.GetValues(
+                                                                        "x-ms-continuation-NextPartitionKey")
+                                                                        .First(), rk.First());
+                                                            }
+                                                            if (!subscription.IsDisposed)
+                                                                observer.OnCompleted();
+                                                        };
+                                                        work();
+                                                        return subscription;
+                                                    });
             return o;
-
         }
 
         private static IEnumerable<string> FormatParameters(IEnumerable<KeyValuePair<string, string>> parameters)
