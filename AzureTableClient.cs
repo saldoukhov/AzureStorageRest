@@ -45,33 +45,42 @@ namespace AzureStorageRest
         private IObservable<HttpResponseMessage> GetResponses(string tableName, IDictionary<string, string> parameters)
         {
             var o = Observable.Create<HttpResponseMessage>(observer =>
-                                                    {
-                                                        var subscription = new BooleanDisposable();
-                                                        Tuple<string, string> continuationToken = null;
-                                                        Action work = async () =>
-                                                        {
-                                                            while (true)
-                                                            {
-                                                                if (subscription.IsDisposed)
-                                                                    break;
-                                                                var resp = await GetResponse(tableName, parameters, continuationToken);
-                                                                if (subscription.IsDisposed)
-                                                                    break;
-                                                                observer.OnNext(resp);
-                                                                IEnumerable<string> rk;
-                                                                if (!resp.Headers.TryGetValues("x-ms-continuation-NextRowKey", out rk))
-                                                                    break;
-                                                                continuationToken =
-                                                                    Tuple.Create(resp.Headers.GetValues(
-                                                                        "x-ms-continuation-NextPartitionKey")
-                                                                        .First(), rk.First());
-                                                            }
-                                                            if (!subscription.IsDisposed)
-                                                                observer.OnCompleted();
-                                                        };
-                                                        work();
-                                                        return subscription;
-                                                    });
+            {
+                var subscription = new BooleanDisposable();
+                Tuple<string, string> continuationToken = null;
+                Action work = async () =>
+                {
+                    while (true)
+                    {
+                        HttpResponseMessage resp;
+                        try
+                        {
+                            if (subscription.IsDisposed)
+                                return;
+                            resp = await GetResponse(tableName, parameters, continuationToken);
+
+                            IEnumerable<string> rk;
+                            continuationToken = resp.Headers.TryGetValues("x-ms-continuation-NextRowKey", out rk)
+                                    ? Tuple.Create(resp.Headers.GetValues("x-ms-continuation-NextPartitionKey").First(), rk.First())
+                                    : null;
+
+                            if (subscription.IsDisposed)
+                                return;
+                        }
+                        catch (Exception e)
+                        {
+                            observer.OnError(e);
+                            return;
+                        }
+                        observer.OnNext(resp);
+                        if (continuationToken == null)
+                            break;
+                    }
+                    observer.OnCompleted();
+                };
+                work();
+                return subscription;
+            });
             return o;
         }
 
